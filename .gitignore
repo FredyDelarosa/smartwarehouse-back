@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Entorno
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Alembic (opcional, no versionar migraciones generadas si trabajas en equipo)
+# migrations/versions/*.py

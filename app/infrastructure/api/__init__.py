@@ -1,0 +1,1 @@
+"""Capa HTTP: dependencias, routers y manejo de excepciones."""
