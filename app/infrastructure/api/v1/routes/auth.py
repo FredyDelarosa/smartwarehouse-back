@@ -22,6 +22,7 @@ from app.infrastructure.api.dependencies import (
     CurrentUserDep,
     HasherDep,
     RolRepoDep,
+    SessionDep,
     TokenProviderDep,
     UsuarioRepoDep,
     require_role,
@@ -63,9 +64,15 @@ async def register(
     usuario_repo: UsuarioRepoDep,
     rol_repo: RolRepoDep,
     hasher: HasherDep,
+    session: SessionDep = None,
 ) -> UsuarioReadDTO:
     use_case = RegisterUseCase(usuario_repo, rol_repo, hasher)
-    return await use_case.execute(payload)
+    dto = await use_case.execute(payload)
+    # Sin este commit el usuario se creaba solo en la sesión y se perdía al
+    # cerrarla: la API devolvía 201 con un id y luego el login fallaba con 401,
+    # como si la cuenta existiera pero la contraseña fuera incorrecta.
+    await session.commit()
+    return dto
 
 
 # ============================================================
