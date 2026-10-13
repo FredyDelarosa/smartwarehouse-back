@@ -7,7 +7,12 @@ from app.application.use_cases.inventario.consultar_stock import (
     ConsultarStockUseCase,
 )
 
+from app.application.use_cases.inventario.stock_por_ubicacion import (
+    StockPorUbicacionUseCase,
+)
+
 __all__ = [
     "AlertasStockBajoUseCase",
+    "StockPorUbicacionUseCase",
     "ConsultarStockUseCase",
 ]
