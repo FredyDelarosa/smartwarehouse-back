@@ -40,7 +40,9 @@ from app.application.dtos.inventario_dto import (
     InventarioCreateDTO,
     InventarioReadDTO,
     InventarioUpdateDTO,
+    ProductoEnUbicacionResumenDTO,
     StockPorUbicacionDTO,
+    UbicacionStockDTO,
     StockTotalProductoDTO,
 )
 from app.application.dtos.metricas_dto import (

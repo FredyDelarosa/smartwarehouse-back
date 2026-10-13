@@ -5,17 +5,22 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.entities import Inventario, Producto
+from app.domain.entities import Inventario, Producto, Ubicacion
 from app.domain.exceptions import (
     CantidadInvalidaError,
     InventarioNoEncontradoError,
 )
 from app.domain.repositories import InventarioRepository
-from app.infrastructure.database.models import InventarioModel, ProductoModel
+from app.infrastructure.database.models import (
+    InventarioModel,
+    ProductoModel,
+    UbicacionModel,
+)
 from app.infrastructure.repositories._mappers import (
     apply_inventario,
     inventario_to_entity,
     producto_to_entity,
+    ubicacion_to_entity,
 )
 
 
@@ -72,6 +77,59 @@ class InventarioRepositoryImpl(InventarioRepository):
         )
         result = await self._session.execute(stmt)
         return [(producto_to_entity(pm), int(tot)) for pm, tot in result.all()]
+
+    async def listar_con_productos(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        solo_activas: bool = True,
+    ) -> list[tuple[Ubicacion, list[tuple[Producto, int]]]]:
+        """
+        JOIN de inventario + ubicaciones + productos.
+
+        La paginación va sobre **ubicaciones**, no sobre las filas del join: con
+        un estante que tuviera diez productos, paginar por fila lo repetiría
+        diez veces y dejaría huecos en el catálogo. Se resuelve con una
+        subconsulta que primero recorta el ids de ubicación.
+
+        La subconsulta ordena también por `codigo_ubicacion`, igual que el SELECT
+        exterior. Paginar por `id` y presentar por código daría páginas
+        incoherentes: el usuario vería P1-A-01 después de P3-D-02.
+        """
+        paginadas = (
+            select(InventarioModel.ubicacion_id)
+            .join(UbicacionModel, UbicacionModel.id == InventarioModel.ubicacion_id)
+            .group_by(InventarioModel.ubicacion_id, UbicacionModel.codigo_ubicacion)
+            .order_by(UbicacionModel.codigo_ubicacion)
+            .limit(limit)
+            .offset(skip)
+        )
+
+        stmt = (
+            select(UbicacionModel, ProductoModel, InventarioModel.cantidad)
+            .join(UbicacionModel, UbicacionModel.id == InventarioModel.ubicacion_id)
+            .join(ProductoModel, ProductoModel.id == InventarioModel.producto_id)
+            .where(InventarioModel.ubicacion_id.in_(paginadas))
+            .order_by(UbicacionModel.codigo_ubicacion, ProductoModel.codigo)
+        )
+        if solo_activas:
+            stmt = stmt.where(UbicacionModel.activo.is_(True))
+
+        result = await self._session.execute(stmt)
+
+        agrupado: dict[int, tuple[Ubicacion, list[tuple[Producto, int]]]] = {}
+        for um, pm, cantidad in result.all():
+            entrada = agrupado.get(um.id)
+            if entrada is None:
+                ubicacion = ubicacion_to_entity(um)
+                entrada = (ubicacion, [])
+                agrupado[um.id] = entrada
+            entrada[1].append((producto_to_entity(pm), int(cantidad)))
+
+        # El orden del SELECT ya viene por codigo_ubicacion, pero un dict
+        # conserva el de inserción en CPython: no hay que reordenar.
+        return list(agrupado.values())
 
     async def create(self, inventario: Inventario) -> Inventario:
         model = InventarioModel()

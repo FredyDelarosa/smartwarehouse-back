@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from app.domain.entities import Inventario, Producto
+from app.domain.entities import Inventario, Producto, Ubicacion
 
 
 class InventarioRepository(ABC):
@@ -39,6 +39,27 @@ class InventarioRepository(ABC):
         """
         Devuelve tuplas (Producto, stock_total) para productos cuyo
         stock total es menor que su stock_minimo.
+        """
+        ...
+
+    @abstractmethod
+    async def listar_con_productos(
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        solo_activas: bool = True,
+    ) -> list[tuple[Ubicacion, list[tuple[Producto, int]]]]:
+        """
+        Vista inversa: qué hay en cada ubicación.
+
+        Devuelve tuplas (Ubicacion, [(Producto, cantidad), ...]) paginadas
+        **por ubicación**, no por fila: si no, un estante con diez productos
+        ocuparía diez huecos de la página y el listado mostraría la misma
+        ubicación repetida.
+
+        Se incluye `codigo` y `nombre` del producto porque es lo que se pinta en
+        el catálogo: solo con el id no hay nada legible.
         """
         ...
 

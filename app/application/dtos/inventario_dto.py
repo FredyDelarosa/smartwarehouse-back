@@ -49,3 +49,30 @@ class StockTotalProductoDTO(BaseModel):
     stock_total: int
     requiere_alerta: bool
     distribucion: list[StockPorUbicacionDTO] = []
+
+class ProductoEnUbicacionResumenDTO(BaseModel):
+    """Producto y cantidad dentro de una ubicación."""
+
+    producto_id: int
+    codigo: str
+    nombre: str
+    cantidad: int = Field(0, ge=0)
+
+
+class UbicacionStockDTO(BaseModel):
+    """
+    Ubicación con todo lo que hay dentro.
+
+    Es la vista inversa de `StockTotalProductoDTO`: en lugar de "este producto,
+    dónde está", responde "esta ubicación, qué tiene". El listado de
+    ubicaciones lo necesita y no puede obtenerlo composing las rutas
+    existentes, que son de un producto o de una ubicación cada vez.
+    """
+
+    ubicacion_id: int
+    codigo_ubicacion: str
+    pasillo: str
+    estante: str
+    nivel: str
+    productos: list[ProductoEnUbicacionResumenDTO] = []
+    total_unidades: int = 0
