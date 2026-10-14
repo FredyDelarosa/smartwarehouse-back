@@ -22,7 +22,7 @@ class Producto:
     foto_url: Optional[str] = None
     activo: bool = True
     # Multialmacén: el catálogo pertenece a un almacén.
-    almacen_id: int = 1
+    almacen_id: int
     fecha_creacion: Optional[datetime] = None
     fecha_actualizacion: Optional[datetime] = None
 

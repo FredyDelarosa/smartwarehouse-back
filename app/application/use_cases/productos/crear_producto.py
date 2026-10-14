@@ -22,7 +22,9 @@ class CrearProductoUseCase:
         self._producto_repo = producto_repo
         self._categoria_repo = categoria_repo
 
-    async def execute(self, dto: ProductoCreateDTO) -> ProductoReadDTO:
+    async def execute(
+        self, dto: ProductoCreateDTO, almacen_id: int
+    ) -> ProductoReadDTO:
         # 1. Validar y normalizar el código con el value object
         try:
             codigo_vo = CodigoProducto(dto.codigo)
@@ -46,6 +48,12 @@ class CrearProductoUseCase:
 
         # 4. Construir la entidad y validarla
         producto = Producto(
+            # Sin esto, la entidad caía al valor por defecto y TODO producto
+            # creado acababa en el almacén 1: quien notificaba desde el
+            # almacén 2 escribía dentro del almacén 1 sin enterarse. Con el
+            # índice único por almacén, eso además salía como un 500 de
+            # "Duplicate entry" al crear un E001 que ya existía allí.
+            almacen_id=almacen_id,
             codigo=codigo_vo.valor,
             nombre=dto.nombre.strip(),
             descripcion=dto.descripcion,

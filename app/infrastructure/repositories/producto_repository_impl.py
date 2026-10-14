@@ -95,6 +95,11 @@ class ProductoRepositoryImpl(ProductoRepository):
     async def create(self, producto: Producto) -> Producto:
         model = ProductoModel()
         apply_producto(producto, model)
+        # El almacén lo pone el repositorio, no quien construye la entidad. Es
+        # la segunda barrera: si alguien vuelve a construir un Producto sin
+        # `almacen_id`, aquí sigue mandando el ámbito del usuario.
+        if self._almacen_id is not None:
+            model.almacen_id = self._almacen_id
         self._session.add(model)
         await self._session.flush()
         await self._session.refresh(model)
