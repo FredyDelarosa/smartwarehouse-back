@@ -20,6 +20,7 @@ from app.application.use_cases.productos import (
 )
 from app.infrastructure.api.dependencies import (
     CategoriaRepoDep,
+    CurrentUserDep,
     ProductoRepoDep,
     SessionDep,
     require_role,
@@ -98,12 +99,13 @@ async def obtener_producto(
 )
 async def crear_producto(
     payload: ProductoCreateDTO,
+    current_user: CurrentUserDep = None,
     producto_repo: ProductoRepoDep = None,
     categoria_repo: CategoriaRepoDep = None,
     session: SessionDep = None,
 ) -> ProductoReadDTO:
     use_case = CrearProductoUseCase(producto_repo, categoria_repo)
-    dto = await use_case.execute(payload)
+    dto = await use_case.execute(payload, current_user.almacen_id)
 
     # Sin este commit la escritura se pierde al cerrar la sesión: el endpoint
     # devolvía 201 con un id que no existía en la base. El repositorio hace

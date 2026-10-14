@@ -23,6 +23,12 @@ from app.infrastructure.api.dependencies import (
 
 router = APIRouter(prefix="/movimientos", tags=["movimientos"])
 
+# El Administrador SÍ puede registrar movimientos. Antes se le excluía y era
+# un problema serio con multialmacén: el administrador de un almacén recién
+# creado es su único usuario, así que podía configurar pasillos y generar
+# ubicaciones pero no registrar ni una unidad de stock. Se le añade aquí lo
+# mismo que ya tenía en incidencias.
+
 
 # ============================================================
 # Confirmación de la escritura
@@ -59,7 +65,7 @@ async def _registrar_y_confirmar(
     response_model=MovimientoReadDTO,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar una entrada de producto",
-    dependencies=[Depends(require_role("Almacenero", "Supervisor"))],
+    dependencies=[Depends(require_role("Administrador", "Supervisor", "Almacenero"))],
 )
 async def registrar_entrada(
     payload: MovimientoCreateDTO,
@@ -86,7 +92,7 @@ async def registrar_entrada(
     response_model=MovimientoReadDTO,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar una salida de producto",
-    dependencies=[Depends(require_role("Almacenero", "Supervisor"))],
+    dependencies=[Depends(require_role("Administrador", "Supervisor", "Almacenero"))],
 )
 async def registrar_salida(
     payload: MovimientoCreateDTO,
@@ -113,7 +119,7 @@ async def registrar_salida(
     response_model=MovimientoReadDTO,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar un traslado entre ubicaciones",
-    dependencies=[Depends(require_role("Almacenero", "Supervisor"))],
+    dependencies=[Depends(require_role("Administrador", "Supervisor", "Almacenero"))],
 )
 async def registrar_traslado(
     payload: MovimientoCreateDTO,
