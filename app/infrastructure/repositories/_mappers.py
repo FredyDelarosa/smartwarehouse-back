@@ -104,7 +104,9 @@ def apply_almacen(e: Almacen, m: AlmacenModel) -> None:
     m.nombre = e.nombre
     m.direccion = e.direccion
     m.activo = e.activo
-    m.almacen_id = e.almacen_id
+    # Sin `almacen_id`: un almacén no pertenece a un almacén. La línea estaba
+    # aquí como resto de un intento de multialmacén y hacía que TODO alta de
+    # almacén fallara con AttributeError.
 
 
 # ============================================================
@@ -124,7 +126,9 @@ def apply_categoria(e: Categoria, m: CategoriaModel) -> None:
     m.nombre = e.nombre
     m.descripcion = e.descripcion
     m.activo = e.activo
-    m.almacen_id = e.almacen_id
+    # Sin `almacen_id`: las categorías son taxonomía compartida. Mismo origen
+    # que en `apply_almacen` — la línea hacía que POST /categorias devolviera
+    # 500 con AttributeError, no un error de validación.
 
 
 # ============================================================
@@ -188,7 +192,9 @@ def apply_ubicacion(e: Ubicacion, m: UbicacionModel) -> None:
     m.coordenada_x = e.coordenada_x
     m.coordenada_y = e.coordenada_y
     m.activo = e.activo
-    m.almacen_id = e.almacen_id
+    # `almacen_id` ya se asigna la primera línea de esta función. Estaba
+    # duplicado al final; inofensivo, pero una línea que sugiere que el valor
+    # importa más de lo que parece cuando se lee el mapper entero.
 
 
 # ============================================================

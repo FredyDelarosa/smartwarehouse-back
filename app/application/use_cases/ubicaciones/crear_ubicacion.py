@@ -22,7 +22,15 @@ class CrearUbicacionUseCase:
         self._ubicacion_repo = ubicacion_repo
         self._almacen_repo = almacen_repo
 
-    async def execute(self, dto: UbicacionCreateDTO) -> UbicacionReadDTO:
+    async def execute(
+        self, dto: UbicacionCreateDTO, almacen_id: int
+    ) -> UbicacionReadDTO:
+        """
+        `almacen_id` lo pasa la ruta desde el usuario autenticado, nunca el
+        cliente. Antes venía del cuerpo de la petición y solo se comprobaba que
+        el almacén existiera, así que bastaba con saber el id de otro para
+        escribir dentro de él.
+        """
         # 1. Validar y normalizar el código de ubicación con el VO
         try:
             codigo_vo = CodigoUbicacion(dto.codigo_ubicacion)
@@ -30,11 +38,11 @@ class CrearUbicacionUseCase:
             raise ValidacionError(str(exc), errores=[str(exc)]) from exc
 
         # 2. Verificar que el almacén exista
-        almacen = await self._almacen_repo.get_by_id(dto.almacen_id)
+        almacen = await self._almacen_repo.get_by_id(almacen_id)
         if almacen is None:
             raise EntidadNoEncontradaError(
                 "Almacén no encontrado",
-                details={"almacen_id": dto.almacen_id},
+                details={"almacen_id": almacen_id},
             )
 
         # 3. Verificar unicidad del código
@@ -45,7 +53,7 @@ class CrearUbicacionUseCase:
 
         # 4. Construir y persistir
         ubicacion = Ubicacion(
-            almacen_id=dto.almacen_id,
+            almacen_id=almacen_id,
             pasillo=codigo_vo.pasillo,
             estante=codigo_vo.estante,
             nivel=str(codigo_vo.nivel),

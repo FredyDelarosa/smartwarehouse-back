@@ -16,11 +16,39 @@ from app.infrastructure.api.dependencies import (
     InventarioRepoDep,
     MovimientoRepoDep,
     ProductoRepoDep,
+    SessionDep,
     UbicacionRepoDep,
     require_role,
 )
 
 router = APIRouter(prefix="/movimientos", tags=["movimientos"])
+
+
+# ============================================================
+# Confirmación de la escritura
+# ============================================================
+async def _registrar_y_confirmar(
+    use_case,
+    payload: MovimientoCreateDTO,
+    current_user,
+    session: SessionDep,
+) -> MovimientoReadDTO:
+    """
+    Ejecuta el caso de uso y cierra la transacción.
+
+    Un movimiento toca TRES tablas a la vez (inventario origen, inventario
+    destino y movimientos). Por eso el commit va después del `execute` y no
+    dentro: si algo fallara a mitad, la rollback de `get_session` dejaría el
+    stock intacto en lugar de haber movido solo la mitad.
+
+    Sin este commit, ninguna de las tres rutas guardaba nada: devolvían 201 con
+    un id de movimiento que no existía y el stock se quedaba como estaba. Era
+    el fallo más difícil de ver de todo el backend, porque la respuesta era
+    correcta y el frontend pintaba el éxito sin más.
+    """
+    dto = await use_case.execute(payload, current_user.id or 0)
+    await session.commit()
+    return dto
 
 
 # ============================================================
@@ -40,11 +68,14 @@ async def registrar_entrada(
     ubicacion_repo: UbicacionRepoDep = None,
     inventario_repo: InventarioRepoDep = None,
     movimiento_repo: MovimientoRepoDep = None,
+    session: SessionDep = None,
 ) -> MovimientoReadDTO:
     use_case = RegistrarEntradaUseCase(
         producto_repo, ubicacion_repo, inventario_repo, movimiento_repo
     )
-    return await use_case.execute(payload, current_user.id or 0)
+    return await _registrar_y_confirmar(
+        use_case, payload, current_user, session
+    )
 
 
 # ============================================================
@@ -64,11 +95,14 @@ async def registrar_salida(
     ubicacion_repo: UbicacionRepoDep = None,
     inventario_repo: InventarioRepoDep = None,
     movimiento_repo: MovimientoRepoDep = None,
+    session: SessionDep = None,
 ) -> MovimientoReadDTO:
     use_case = RegistrarSalidaUseCase(
         producto_repo, ubicacion_repo, inventario_repo, movimiento_repo
     )
-    return await use_case.execute(payload, current_user.id or 0)
+    return await _registrar_y_confirmar(
+        use_case, payload, current_user, session
+    )
 
 
 # ============================================================
@@ -88,11 +122,14 @@ async def registrar_traslado(
     ubicacion_repo: UbicacionRepoDep = None,
     inventario_repo: InventarioRepoDep = None,
     movimiento_repo: MovimientoRepoDep = None,
+    session: SessionDep = None,
 ) -> MovimientoReadDTO:
     use_case = RegistrarTrasladoUseCase(
         producto_repo, ubicacion_repo, inventario_repo, movimiento_repo
     )
-    return await use_case.execute(payload, current_user.id or 0)
+    return await _registrar_y_confirmar(
+        use_case, payload, current_user, session
+    )
 
 
 # ============================================================

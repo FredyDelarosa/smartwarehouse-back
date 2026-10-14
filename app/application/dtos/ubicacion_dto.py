@@ -10,7 +10,19 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class UbicacionBaseDTO(BaseModel):
-    almacen_id: int
+    """
+    `almacen_id` NO se pide al cliente, a propósito.
+
+    Antes era un campo obligatorio del cuerpo y lo rellenaba el formulario con
+    un 1 fijo. Eso dejaba la escritura abierta: un administrador de un almacén
+    podía crear una ubicación dentro del almacén de otro indicando su id, y el
+    receptor la veía en su listado. El almacén lo decide la sesión, no el
+    cuerpo de la petición.
+
+    Pydantic ignora los campos extra, así que un cliente antiguo que siga
+    mandando `almacen_id` no rompe: el valor se descarta.
+    """
+
     pasillo: str = Field(..., min_length=1, max_length=10)
     estante: str = Field(..., min_length=1, max_length=10)
     nivel: str = Field(..., min_length=1, max_length=10)

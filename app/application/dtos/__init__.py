@@ -59,6 +59,12 @@ from app.application.dtos.movimiento_dto import (
     MovimientoCreateDTO,
     MovimientoReadDTO,
 )
+from app.application.dtos.onboarding_dto import (
+    OnboardingAlmacenDTO,
+    OnboardingDTO,
+    OnboardingResultDTO,
+    OnboardingUsuarioDTO,
+)
 from app.application.dtos.producto_dto import (
     ProductoBaseDTO,
     ProductoCreateDTO,
@@ -106,6 +112,9 @@ __all__ = [
     "TiempoPromedioBusquedaDTO",
     # Movimiento
     "MovimientoBaseDTO", "MovimientoCreateDTO", "MovimientoReadDTO",
+    # Onboarding
+    "OnboardingAlmacenDTO", "OnboardingDTO", "OnboardingResultDTO",
+    "OnboardingUsuarioDTO",
     # Producto
     "ProductoBaseDTO", "ProductoCreateDTO", "ProductoReadDTO",
     "ProductoSearchDTO", "ProductoUpdateDTO",

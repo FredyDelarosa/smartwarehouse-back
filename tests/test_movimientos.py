@@ -7,12 +7,12 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_registrar_entrada(client: AsyncClient, admin_token: str):
+async def test_registrar_entrada(client: AsyncClient, supervisor_token: str):
     """Test: registrar una entrada de producto."""
     # Primero obtener el ID de T001
     response = await client.get(
         "/api/v1/productos/buscar?termino=T001",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
     )
     assert response.status_code == 200
     productos = response.json()
@@ -22,7 +22,7 @@ async def test_registrar_entrada(client: AsyncClient, admin_token: str):
     # Obtener ubicación P3-A-01
     response = await client.get(
         "/api/v1/ubicaciones/",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
     )
     assert response.status_code == 200
     ubicaciones = response.json()
@@ -34,7 +34,7 @@ async def test_registrar_entrada(client: AsyncClient, admin_token: str):
     # Registrar entrada
     response = await client.post(
         "/api/v1/movimientos/entrada",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
         json={
             "tipo": "ENTRADA",
             "producto_id": t001["id"],
@@ -95,12 +95,12 @@ async def test_registrar_salida(client: AsyncClient, supervisor_token: str):
 
 
 @pytest.mark.asyncio
-async def test_registrar_traslado(client: AsyncClient, admin_token: str):
+async def test_registrar_traslado(client: AsyncClient, supervisor_token: str):
     """Test: registrar un traslado entre ubicaciones."""
     # Obtener T001
     response = await client.get(
         "/api/v1/productos/buscar?termino=T001",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
     )
     assert response.status_code == 200
     productos = response.json()
@@ -110,7 +110,7 @@ async def test_registrar_traslado(client: AsyncClient, admin_token: str):
     # Obtener ubicaciones
     response = await client.get(
         "/api/v1/ubicaciones/",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
     )
     assert response.status_code == 200
     ubicaciones = response.json()
@@ -126,7 +126,7 @@ async def test_registrar_traslado(client: AsyncClient, admin_token: str):
     # Registrar traslado
     response = await client.post(
         "/api/v1/movimientos/traslado",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {supervisor_token}"},
         json={
             "tipo": "TRASLADO",
             "producto_id": t001["id"],

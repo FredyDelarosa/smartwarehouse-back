@@ -21,6 +21,7 @@ from app.application.use_cases.productos import (
 from app.infrastructure.api.dependencies import (
     CategoriaRepoDep,
     ProductoRepoDep,
+    SessionDep,
     require_role,
 )
 
@@ -99,9 +100,17 @@ async def crear_producto(
     payload: ProductoCreateDTO,
     producto_repo: ProductoRepoDep = None,
     categoria_repo: CategoriaRepoDep = None,
+    session: SessionDep = None,
 ) -> ProductoReadDTO:
     use_case = CrearProductoUseCase(producto_repo, categoria_repo)
-    return await use_case.execute(payload)
+    dto = await use_case.execute(payload)
+
+    # Sin este commit la escritura se pierde al cerrar la sesión: el endpoint
+    # devolvía 201 con un id que no existía en la base. El repositorio hace
+    # `flush()`, que solo manda el INSERT dentro de la transacción abierta;
+    # quien la cierra es la ruta.
+    await session.commit()
+    return dto
 
 
 # ============================================================
@@ -118,9 +127,15 @@ async def actualizar_producto(
     payload: ProductoUpdateDTO,
     producto_repo: ProductoRepoDep = None,
     categoria_repo: CategoriaRepoDep = None,
+    session: SessionDep = None,
 ) -> ProductoReadDTO:
     use_case = ActualizarProductoUseCase(producto_repo, categoria_repo)
-    return await use_case.execute(producto_id, payload)
+    dto = await use_case.execute(producto_id, payload)
+
+    # Mismo motivo que en crear_producto: sin commit el PATCH devolvía 200 con
+    # datos que seguían sin estar guardados.
+    await session.commit()
+    return dto
 
 
 # ============================================================
@@ -136,6 +151,10 @@ async def actualizar_producto(
 async def eliminar_producto(
     producto_id: int,
     producto_repo: ProductoRepoDep = None,
+    session: SessionDep = None,
 ) -> None:
     use_case = EliminarProductoUseCase(producto_repo)
     await use_case.execute(producto_id)
+
+    # Sin commit la baja lógica tampoco se guardaba.
+    await session.commit()
