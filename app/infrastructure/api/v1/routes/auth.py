@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, status
 from app.application.dtos import (
     ChangePasswordDTO,
     LoginDTO,
+    OnboardingDTO,
+    OnboardingResultDTO,
     RefreshTokenDTO,
     TokenDTO,
     UsuarioCreateDTO,
@@ -15,10 +17,12 @@ from app.application.dtos import (
 from app.application.use_cases.auth import (
     ChangePasswordUseCase,
     LoginUseCase,
+    OnboardingUseCase,
     RefreshTokenUseCase,
     RegisterUseCase,
 )
 from app.infrastructure.api.dependencies import (
+    AlmacenRepoDep,
     CurrentUserDep,
     HasherDep,
     RolRepoDep,
@@ -130,3 +134,42 @@ async def me(current_user: CurrentUserDep) -> UsuarioReadDTO:
         fecha_creacion=current_user.fecha_creacion,
         ultimo_acceso=current_user.ultimo_acceso,
     )
+
+
+# ============================================================
+# POST /auth/onboarding   (público)
+# ============================================================
+@router.post(
+    "/onboarding",
+    response_model=OnboardingResultDTO,
+    status_code=status.HTTP_201_CREATED,
+    summary="Alta de un almacén nuevo con su administrador",
+)
+async def onboarding(
+    payload: OnboardingDTO,
+    almacen_repo: AlmacenRepoDep,
+    usuario_repo: UsuarioRepoDep,
+    rol_repo: RolRepoDep,
+    hasher: HasherDep,
+    token_provider: TokenProviderDep,
+    session: SessionDep = None,
+) -> OnboardingResultDTO:
+    """
+    Crea el almacén y su administrador y devuelve la sesión ya iniciada.
+
+    Es la ÚNICA ruta pública que escribe en la base. Las demás que crean datos
+    exigen rol de Administrador, así que esta es también el punto más expuesto
+    del sistema de cara a que alguien se lleve un almacén vacío por spamming.
+
+    Ver la nota de despliegue en DECISIONS.md: para cerrarla del todo hay que
+    dejarla detrás de un `rate limit` de nginx o de Cloudflare.
+    """
+    use_case = OnboardingUseCase(
+        almacen_repo, usuario_repo, rol_repo, hasher, token_provider
+    )
+    dto = await use_case.execute(payload)
+    # Un solo commit para el almacén y el usuario: o existen los dos, o ninguno.
+    # Si fallara el commit, el token ya emitido apuntaría a un almacén
+    # inexistente y el cliente vería un 201 con una sesión muerta.
+    await session.commit()
+    return dto

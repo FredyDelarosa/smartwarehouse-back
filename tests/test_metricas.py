@@ -23,15 +23,25 @@ async def test_tiempo_promedio_busqueda(client: AsyncClient, admin_token: str):
 
 @pytest.mark.asyncio
 async def test_comparativa_busquedas(client: AsyncClient, admin_token: str):
-    """Test: comparativa julio vs septiembre → mejora > 200 s y > 50 %."""
+    """
+    Comparativa julio vs septiembre → mejora > 200 s y > 50 %.
+
+    Las fechas vienen del histórico sembrado: julio 2025 a ~514 s de media y
+    septiembre 2025 a ~83 s. Apuntaban a 2024, un año sin datos, así que la
+    API respondía `mejora_segundos: null` y el test reventaba con
+    "TypeError: '>' no se soporta entre NoneType e int" en vez de decir que no
+    hay datos.
+
+    Si algún día se cambia el seed, hay que actualizar estos meses aquí.
+    """
     response = await client.get(
         "/api/v1/metricas/comparativa",
         headers={"Authorization": f"Bearer {admin_token}"},
         params={
-            "desde_anterior": "2024-07-01T00:00:00",
-            "hasta_anterior": "2024-07-31T23:59:59",
-            "desde_actual": "2024-09-01T00:00:00",
-            "hasta_actual": "2024-09-30T23:59:59",
+            "desde_anterior": "2025-07-01T00:00:00",
+            "hasta_anterior": "2025-07-31T23:59:59",
+            "desde_actual": "2025-09-01T00:00:00",
+            "hasta_actual": "2025-09-30T23:59:59",
         },
     )
     assert response.status_code == 200

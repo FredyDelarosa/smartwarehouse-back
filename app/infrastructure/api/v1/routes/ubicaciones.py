@@ -16,6 +16,8 @@ from app.application.use_cases.ubicaciones import (
 )
 from app.domain.exceptions import UbicacionNoEncontradaError
 from app.infrastructure.api.dependencies import (
+    CurrentUserDep,
+    SessionDep,
     AlmacenRepoDep,
     InventarioRepoDep,
     ProductoRepoDep,
@@ -82,8 +84,10 @@ async def obtener_ubicacion(
 )
 async def crear_ubicacion(
     payload: UbicacionCreateDTO,
+    current_user: CurrentUserDep = None,
     ubicacion_repo: UbicacionRepoDep = None,
     almacen_repo: AlmacenRepoDep = None,
+    session: SessionDep = None,
 ) -> UbicacionReadDTO:
     # Validar unicidad de codigo_qr (PET-2)
     if payload.codigo_qr:
@@ -95,7 +99,12 @@ async def crear_ubicacion(
                 details={"codigo_qr": payload.codigo_qr},
             )
     use_case = CrearUbicacionUseCase(ubicacion_repo, almacen_repo)
-    return await use_case.execute(payload)
+    dto = await use_case.execute(payload, current_user.almacen_id)
+
+    # Sin commit la ubicación no se guardaba: devolvía 201 con un id que
+    # después no existía, y el QR impreso no llevaba a ninguna parte.
+    await session.commit()
+    return dto
 
 
 # ============================================================

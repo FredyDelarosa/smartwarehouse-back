@@ -18,6 +18,7 @@ from app.application.use_cases.incidencias import (
 )
 from app.domain.entities import TipoIncidencia
 from app.infrastructure.api.dependencies import (
+    SessionDep,
     CurrentUserDep,
     IncidenciaRepoDep,
     ProductoRepoDep,
@@ -73,11 +74,17 @@ async def crear_incidencia(
     incidencia_repo: IncidenciaRepoDep,
     producto_repo: ProductoRepoDep,
     ubicacion_repo: UbicacionRepoDep,
+    session: SessionDep = None,
 ) -> IncidenciaReadDTO:
     use_case = CrearIncidenciaUseCase(
         incidencia_repo, producto_repo, ubicacion_repo
     )
-    return await use_case.execute(payload, current_user.id or 0)
+    dto = await use_case.execute(payload, current_user.id or 0)
+
+    # Sin commit la incidencia no se guardaba: 201 con un id que luego no
+    # aparecía en el listado.
+    await session.commit()
+    return dto
 
 
 # ============================================================
@@ -92,6 +99,11 @@ async def crear_incidencia(
 async def resolver_incidencia(
     incidencia_id: int,
     incidencia_repo: IncidenciaRepoDep,
+    session: SessionDep = None,
 ) -> IncidenciaReadDTO:
     use_case = ResolverIncidenciaUseCase(incidencia_repo)
-    return await use_case.execute(incidencia_id)
+    dto = await use_case.execute(incidencia_id)
+
+    # Sin commit la incidencia seguía apareciendo como abierta.
+    await session.commit()
+    return dto
