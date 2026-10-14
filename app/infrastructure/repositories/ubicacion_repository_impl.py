@@ -48,6 +48,12 @@ class UbicacionRepositoryImpl(UbicacionRepository):
         self, almacen_id: int, *, solo_activas: bool = True
     ) -> list[Ubicacion]:
         stmt = select(UbicacionModel).where(UbicacionModel.almacen_id == almacen_id)
+        if self._almacen_id is not None:
+            # Sin esto, GET /ubicaciones/almacen/{id} aceptaría en la URL el id
+            # de OTRO almacén y devolvería sus estantes. El repositorio ya está
+            # acotado, pero el id de la ruta viene de fuera y hay que
+            # comprobar que coincide con el ámbito del usuario.
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         if solo_activas:
             stmt = stmt.where(UbicacionModel.activo.is_(True))
         stmt = stmt.order_by(

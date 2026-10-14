@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities import Movimiento, TipoMovimiento
 from app.domain.repositories import MovimientoRepository
-from app.infrastructure.database.models import MovimientoModel
+from app.infrastructure.database.models import (
+    MovimientoModel,
+    UsuarioModel,
+)
 from app.infrastructure.repositories._mappers import (
     apply_movimiento,
     movimiento_to_entity,
@@ -16,11 +19,27 @@ from app.infrastructure.repositories._mappers import (
 
 
 class MovimientoRepositoryImpl(MovimientoRepository):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, almacen_id: int | None = None) -> None:
         self._session = session
+        # Multialmacén: un movimiento pertenece al almacén de quien lo registra.
+        # Se usa `usuario_id` y no la ubicación porque un movimiento es un
+        # HECHO del almacén (entró, salió, se trasladó), no una propiedad del
+        # estante: aunque las referencias de ubicación ya están acotadas, el
+        # autor es quien define a qué almacén pertenece el registro.
+        self._almacen_id = almacen_id
+
+    def _acotar(self, stmt):
+        if self._almacen_id is None:
+            return stmt
+        return stmt.join(
+            UsuarioModel, UsuarioModel.id == MovimientoModel.usuario_id
+        ).where(UsuarioModel.almacen_id == self._almacen_id)
 
     async def get_by_id(self, movimiento_id: int) -> Optional[Movimiento]:
-        model = await self._session.get(MovimientoModel, movimiento_id)
+        stmt = self._acotar(select(MovimientoModel)).where(
+            MovimientoModel.id == movimiento_id
+        )
+        model = await self._session.scalar(stmt)
         return movimiento_to_entity(model) if model else None
 
     async def list(
@@ -35,7 +54,7 @@ class MovimientoRepositoryImpl(MovimientoRepository):
         skip: int = 0,
         limit: int = 100,
     ) -> list[Movimiento]:
-        stmt = select(MovimientoModel)
+        stmt = self._acotar(select(MovimientoModel))
         if producto_id is not None:
             stmt = stmt.where(MovimientoModel.producto_id == producto_id)
         if ubicacion_id is not None:
@@ -62,11 +81,9 @@ class MovimientoRepositoryImpl(MovimientoRepository):
         desde: Optional[datetime] = None,
         hasta: Optional[datetime] = None,
     ) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(MovimientoModel)
-            .where(MovimientoModel.tipo == tipo)
-        )
+        stmt = self._acotar(
+            select(func.count()).select_from(MovimientoModel)
+        ).where(MovimientoModel.tipo == tipo)
         if desde is not None:
             stmt = stmt.where(MovimientoModel.fecha >= desde)
         if hasta is not None:

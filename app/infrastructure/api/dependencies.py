@@ -118,20 +118,20 @@ def get_ubicacion_repo(session: SessionDep, usuario: CurrentUserDep) -> Ubicacio
     return UbicacionRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
-def get_inventario_repo(session: SessionDep) -> InventarioRepository:
-    return InventarioRepositoryImpl(session)
+def get_inventario_repo(session: SessionDep, usuario: CurrentUserDep) -> InventarioRepository:
+    return InventarioRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
-def get_movimiento_repo(session: SessionDep) -> MovimientoRepository:
-    return MovimientoRepositoryImpl(session)
+def get_movimiento_repo(session: SessionDep, usuario: CurrentUserDep) -> MovimientoRepository:
+    return MovimientoRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
-def get_busqueda_repo(session: SessionDep) -> BusquedaRepository:
-    return BusquedaRepositoryImpl(session)
+def get_busqueda_repo(session: SessionDep, usuario: CurrentUserDep) -> BusquedaRepository:
+    return BusquedaRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
-def get_incidencia_repo(session: SessionDep) -> IncidenciaRepository:
-    return IncidenciaRepositoryImpl(session)
+def get_incidencia_repo(session: SessionDep, usuario: CurrentUserDep) -> IncidenciaRepository:
+    return IncidenciaRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
 RolRepoDep = Annotated[RolRepository, Depends(get_rol_repo)]
