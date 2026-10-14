@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.entities import Busqueda
 from app.domain.exceptions import BusquedaNoEncontradaError
 from app.domain.repositories import BusquedaRepository
-from app.infrastructure.database.models import BusquedaModel, ProductoModel
+from app.infrastructure.database.models import BusquedaModel, UsuarioModel, ProductoModel
 from app.infrastructure.repositories._mappers import (
     apply_busqueda,
     busqueda_to_entity,
@@ -17,8 +17,21 @@ from app.infrastructure.repositories._mappers import (
 
 
 class BusquedaRepositoryImpl(BusquedaRepository):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, almacen_id: int | None = None) -> None:
         self._session = session
+        # Multialmacén. Antes `tiempo_promedio` y `count` NO filtraban por
+        # usuario: devolvían la media y el total de TODOS, así que el panel
+        # mostraba el dato agregado de toda la base. No era un fallo visual
+        # cuando solo había un almacén, pero con varios es una fuga entre
+        # inquilinos. Ahora se acotan por el almacén del usuario.
+        self._almacen_id = almacen_id
+
+    def _acotar(self, stmt):
+        if self._almacen_id is None:
+            return stmt
+        return stmt.join(
+            UsuarioModel, UsuarioModel.id == BusquedaModel.usuario_id
+        ).where(UsuarioModel.almacen_id == self._almacen_id)
 
     async def get_by_id(self, busqueda_id: int) -> Optional[Busqueda]:
         model = await self._session.get(BusquedaModel, busqueda_id)
@@ -77,9 +90,9 @@ class BusquedaRepositoryImpl(BusquedaRepository):
         desde: Optional[datetime] = None,
         hasta: Optional[datetime] = None,
     ) -> Optional[float]:
-        stmt = select(func.avg(BusquedaModel.tiempo_busqueda_segundos)).where(
-            BusquedaModel.tiempo_busqueda_segundos.is_not(None)
-        )
+        stmt = self._acotar(
+            select(func.avg(BusquedaModel.tiempo_busqueda_segundos))
+        ).where(BusquedaModel.tiempo_busqueda_segundos.is_not(None))
         if desde is not None:
             stmt = stmt.where(BusquedaModel.fecha_hora_inicio >= desde)
         if hasta is not None:
@@ -94,7 +107,7 @@ class BusquedaRepositoryImpl(BusquedaRepository):
         hasta: Optional[datetime] = None,
         exito: Optional[bool] = None,
     ) -> int:
-        stmt = select(func.count()).select_from(BusquedaModel)
+        stmt = self._acotar(select(func.count()).select_from(BusquedaModel))
         if desde is not None:
             stmt = stmt.where(BusquedaModel.fecha_hora_inicio >= desde)
         if hasta is not None:

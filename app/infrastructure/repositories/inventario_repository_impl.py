@@ -25,17 +25,39 @@ from app.infrastructure.repositories._mappers import (
 
 
 class InventarioRepositoryImpl(InventarioRepository):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, almacen_id: int | None = None) -> None:
         self._session = session
+        # Multialmacén: el stock pertenece a un almacén. Una fila de inventario
+        # cuelga de un producto, y el producto ya pertenece a un almacén, así
+        # que basta con filtrar por `productos.almacen_id`: no hace falta
+        # desnormalizar la tabla `inventario`.
+        self._almacen_id = almacen_id
+
+    def _acotar(self, stmt):
+        """
+        Añade el filtro de almacén a una consulta sobre inventario.
+
+        Se centraliza para que ninguna lectura se quede sin acotar por olvido:
+        una consulta sin filtro devolvería el stock de otro almacén sin fallar
+        nada, que es el fallo más difícil de detectar.
+        """
+        if self._almacen_id is None:
+            return stmt
+        return stmt.join(
+            ProductoModel, ProductoModel.id == InventarioModel.producto_id
+        ).where(ProductoModel.almacen_id == self._almacen_id)
 
     async def get_by_id(self, inventario_id: int) -> Optional[Inventario]:
-        model = await self._session.get(InventarioModel, inventario_id)
+        stmt = self._acotar(select(InventarioModel)).where(
+            InventarioModel.id == inventario_id
+        )
+        model = await self._session.scalar(stmt)
         return inventario_to_entity(model) if model else None
 
     async def get_by_producto_y_ubicacion(
         self, producto_id: int, ubicacion_id: int
     ) -> Optional[Inventario]:
-        stmt = select(InventarioModel).where(
+        stmt = self._acotar(select(InventarioModel)).where(
             InventarioModel.producto_id == producto_id,
             InventarioModel.ubicacion_id == ubicacion_id,
         )
@@ -43,23 +65,23 @@ class InventarioRepositoryImpl(InventarioRepository):
         return inventario_to_entity(model) if model else None
 
     async def list_by_producto(self, producto_id: int) -> list[Inventario]:
-        stmt = select(InventarioModel).where(
+        stmt = self._acotar(select(InventarioModel)).where(
             InventarioModel.producto_id == producto_id
         )
         result = await self._session.scalars(stmt)
         return [inventario_to_entity(m) for m in result.all()]
 
     async def list_by_ubicacion(self, ubicacion_id: int) -> list[Inventario]:
-        stmt = select(InventarioModel).where(
+        stmt = self._acotar(select(InventarioModel)).where(
             InventarioModel.ubicacion_id == ubicacion_id
         )
         result = await self._session.scalars(stmt)
         return [inventario_to_entity(m) for m in result.all()]
 
     async def stock_total_producto(self, producto_id: int) -> int:
-        stmt = select(func.coalesce(func.sum(InventarioModel.cantidad), 0)).where(
-            InventarioModel.producto_id == producto_id
-        )
+        stmt = self._acotar(
+            select(func.coalesce(func.sum(InventarioModel.cantidad), 0))
+        ).where(InventarioModel.producto_id == producto_id)
         return int(await self._session.scalar(stmt) or 0)
 
     async def list_stock_bajo(self) -> list[tuple[Producto, int]]:
@@ -75,6 +97,10 @@ class InventarioRepositoryImpl(InventarioRepository):
             .having(total < ProductoModel.stock_minimo)
             .order_by(ProductoModel.nombre)
         )
+        # El filtro va directo y no por `_acotar()`: aquí la consulta ya parte
+        # de ProductoModel, y volver a hacer join generaría un JOIN duplicado.
+        if self._almacen_id is not None:
+            stmt = stmt.where(ProductoModel.almacen_id == self._almacen_id)
         result = await self._session.execute(stmt)
         return [(producto_to_entity(pm), int(tot)) for pm, tot in result.all()]
 
@@ -159,7 +185,7 @@ class InventarioRepositoryImpl(InventarioRepository):
         delta_cantidad: int,
     ) -> Inventario:
         """Crea el registro si no existe, y aplica `delta_cantidad` (puede ser negativo)."""
-        stmt = select(InventarioModel).where(
+        stmt = self._acotar(select(InventarioModel)).where(
             InventarioModel.producto_id == producto_id,
             InventarioModel.ubicacion_id == ubicacion_id,
         )

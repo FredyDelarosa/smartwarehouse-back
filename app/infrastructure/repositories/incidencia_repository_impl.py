@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.entities import Incidencia, TipoIncidencia
 from app.domain.exceptions import IncidenciaNoEncontradaError
 from app.domain.repositories import IncidenciaRepository
-from app.infrastructure.database.models import IncidenciaModel
+from app.infrastructure.database.models import (
+    IncidenciaModel,
+    UsuarioModel,
+)
 from app.infrastructure.repositories._mappers import (
     apply_incidencia,
     incidencia_to_entity,
@@ -17,11 +20,26 @@ from app.infrastructure.repositories._mappers import (
 
 
 class IncidenciaRepositoryImpl(IncidenciaRepository):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, almacen_id: int | None = None) -> None:
         self._session = session
+        # Multialmacén: una incidencia la reporta un usuario de un almacén, y
+        # pertenece a ese almacén. Puede no tener producto ni ubicación (p. ej.
+        # "fuga de agua en el pasillo"), así que el almacén se toma siempre del
+        # autor, nunca del objeto tratado.
+        self._almacen_id = almacen_id
+
+    def _acotar(self, stmt):
+        if self._almacen_id is None:
+            return stmt
+        return stmt.join(
+            UsuarioModel, UsuarioModel.id == IncidenciaModel.usuario_id
+        ).where(UsuarioModel.almacen_id == self._almacen_id)
 
     async def get_by_id(self, incidencia_id: int) -> Optional[Incidencia]:
-        model = await self._session.get(IncidenciaModel, incidencia_id)
+        stmt = self._acotar(select(IncidenciaModel)).where(
+            IncidenciaModel.id == incidencia_id
+        )
+        model = await self._session.scalar(stmt)
         return incidencia_to_entity(model) if model else None
 
     async def list(
@@ -35,7 +53,7 @@ class IncidenciaRepositoryImpl(IncidenciaRepository):
         skip: int = 0,
         limit: int = 100,
     ) -> list[Incidencia]:
-        stmt = select(IncidenciaModel)
+        stmt = self._acotar(select(IncidenciaModel))
         if tipo is not None:
             stmt = stmt.where(IncidenciaModel.tipo == tipo)
         if resuelta is not None:
@@ -57,11 +75,9 @@ class IncidenciaRepositoryImpl(IncidenciaRepository):
         desde: Optional[datetime] = None,
         hasta: Optional[datetime] = None,
     ) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(IncidenciaModel)
-            .where(IncidenciaModel.tipo == tipo)
-        )
+        stmt = self._acotar(
+            select(func.count()).select_from(IncidenciaModel)
+        ).where(IncidenciaModel.tipo == tipo)
         if desde is not None:
             stmt = stmt.where(IncidenciaModel.fecha >= desde)
         if hasta is not None:
@@ -79,7 +95,10 @@ class IncidenciaRepositoryImpl(IncidenciaRepository):
     async def update(self, incidencia: Incidencia) -> Incidencia:
         if incidencia.id is None:
             raise ValueError("La incidencia debe tener id para actualizarse")
-        model = await self._session.get(IncidenciaModel, incidencia.id)
+        stmt = self._acotar(select(IncidenciaModel)).where(
+            IncidenciaModel.id == incidencia.id
+        )
+        model = await self._session.scalar(stmt)
         if model is None:
             raise IncidenciaNoEncontradaError(
                 details={"incidencia_id": incidencia.id}
