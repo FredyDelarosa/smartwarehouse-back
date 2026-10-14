@@ -73,6 +73,27 @@ TokenProviderDep = Annotated[TokenProviderPort, Depends(get_token_provider)]
 # ============================================================
 # Repositorios (uno por request, ligado a la sesión)
 # ============================================================
+# PET-4 · Multialmacén
+#
+# Los repositorios de datos están ATADOS al almacén del usuario autenticado en
+# el momento de construirse, en vez de recibir `almacen_id` en cada método.
+#
+# Por qué así y no como parámetro: con el parámetro, olvidar el filtro en una
+# consulta nueva devuelve datos de otro almacén sin que nada falle. Atándolo en
+# el constructor, el olvido no es representable. Además evita cambiar la firma
+# de ~40 métodos y todas sus llamadas.
+#
+# `almacen_id` es obligatorio en el constructor justamente para que no se pueda
+# construir un repositorio "desacoplado" por accidente.
+#
+# Excepción: el repositorio de usuarios NO se ata. Es la fuente de la identidad
+# —`get_current_user` lo necesita para saber qué almacén es— y atarlo
+# produciría una dependencia circular.
+
+# Tipo auxiliar para los repositorios atados al almacén.
+AlmacenScope = int
+
+
 def get_rol_repo(session: SessionDep) -> RolRepository:
     return RolRepositoryImpl(session)
 
@@ -89,12 +110,12 @@ def get_categoria_repo(session: SessionDep) -> CategoriaRepository:
     return CategoriaRepositoryImpl(session)
 
 
-def get_producto_repo(session: SessionDep) -> ProductoRepository:
-    return ProductoRepositoryImpl(session)
+def get_producto_repo(session: SessionDep, usuario: CurrentUserDep) -> ProductoRepository:
+    return ProductoRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
-def get_ubicacion_repo(session: SessionDep) -> UbicacionRepository:
-    return UbicacionRepositoryImpl(session)
+def get_ubicacion_repo(session: SessionDep, usuario: CurrentUserDep) -> UbicacionRepository:
+    return UbicacionRepositoryImpl(session, almacen_id=usuario.almacen_id)
 
 
 def get_inventario_repo(session: SessionDep) -> InventarioRepository:

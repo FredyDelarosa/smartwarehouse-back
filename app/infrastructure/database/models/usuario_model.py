@@ -28,6 +28,16 @@ class UsuarioModel(Base):
         Integer, ForeignKey("roles.id", onupdate="CASCADE", ondelete="RESTRICT"),
         nullable=False,
     )
+    # Multialmacén: define qué datos ve la petición. `get_current_user`
+    # carga el usuario en CADA request, así que cualquier endpoint puede
+    # leer current_user.almacen_id sin consultas extra.
+    almacen_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("almacenes.id", onupdate="CASCADE", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        index=True,
+    )
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     fecha_creacion: Mapped[Optional[datetime]] = mapped_column(
         DateTime, server_default=func.now(), nullable=True

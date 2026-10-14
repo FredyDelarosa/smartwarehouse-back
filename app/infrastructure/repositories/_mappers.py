@@ -70,6 +70,7 @@ def usuario_to_entity(m: UsuarioModel, *, include_rol: bool = False) -> Usuario:
         password_hash=m.password_hash,
         rol_id=m.rol_id,
         activo=m.activo,
+        almacen_id=m.almacen_id,
         fecha_creacion=m.fecha_creacion,
         ultimo_acceso=m.ultimo_acceso,
         rol=rol,
@@ -82,6 +83,7 @@ def apply_usuario(e: Usuario, m: UsuarioModel) -> None:
     m.password_hash = e.password_hash
     m.rol_id = e.rol_id
     m.activo = e.activo
+    m.almacen_id = e.almacen_id
     m.ultimo_acceso = e.ultimo_acceso
 
 
@@ -102,6 +104,7 @@ def apply_almacen(e: Almacen, m: AlmacenModel) -> None:
     m.nombre = e.nombre
     m.direccion = e.direccion
     m.activo = e.activo
+    m.almacen_id = e.almacen_id
 
 
 # ============================================================
@@ -121,6 +124,7 @@ def apply_categoria(e: Categoria, m: CategoriaModel) -> None:
     m.nombre = e.nombre
     m.descripcion = e.descripcion
     m.activo = e.activo
+    m.almacen_id = e.almacen_id
 
 
 # ============================================================
@@ -137,6 +141,7 @@ def producto_to_entity(m: ProductoModel) -> Producto:
         stock_minimo=m.stock_minimo,
         foto_url=m.foto_url,
         activo=m.activo,
+        almacen_id=m.almacen_id,
         fecha_creacion=m.fecha_creacion,
         fecha_actualizacion=m.fecha_actualizacion,
     )
@@ -151,6 +156,7 @@ def apply_producto(e: Producto, m: ProductoModel) -> None:
     m.stock_minimo = e.stock_minimo
     m.foto_url = e.foto_url
     m.activo = e.activo
+    m.almacen_id = e.almacen_id
 
 
 # ============================================================
@@ -182,6 +188,7 @@ def apply_ubicacion(e: Ubicacion, m: UbicacionModel) -> None:
     m.coordenada_x = e.coordenada_x
     m.coordenada_y = e.coordenada_y
     m.activo = e.activo
+    m.almacen_id = e.almacen_id
 
 
 # ============================================================

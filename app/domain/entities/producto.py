@@ -21,6 +21,8 @@ class Producto:
     stock_minimo: int = 0
     foto_url: Optional[str] = None
     activo: bool = True
+    # Multialmacén: el catálogo pertenece a un almacén.
+    almacen_id: int = 1
     fecha_creacion: Optional[datetime] = None
     fecha_actualizacion: Optional[datetime] = None
 
