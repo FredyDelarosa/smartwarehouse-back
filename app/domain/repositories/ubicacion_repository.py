@@ -24,6 +24,26 @@ class UbicacionRepository(ABC):
         """Busca por el contenido del código QR escaneado."""
         ...
 
+    # OJO: este método tiene que declararse ANTES que `list` de más abajo.
+    # El cuerpo de la clase se ejecuta de arriba abajo y, a partir de ahí,
+    # `list` pasa a ser el método de la clase: las anotaciones que dicen
+    # `list[Ubicacion]` dejan de resolverse y saltan
+    # "TypeError: 'function' object is not subscriptable".
+    async def create_many(
+        self, ubicaciones: list[Ubicacion], *, almacen_id: int
+    ) -> list[Ubicacion]:
+        """
+        Inserta varias filas de una vez y devuelve las entidades con su id.
+
+        Existe para la generación del cuestionario, que puede crear cientos de
+        ubicaciones de golpe. Ir de una en una serían cientos de viajes de
+        ida y vuelta por red contra TiDB Cloud, que no es local.
+
+        `almacen_id` es explícito y NO se deduce de la entidad: quien genera
+        decide a qué almacén va, y el repositorio comprueba que sea el suyo.
+        """
+        ...
+
     @abstractmethod
     async def list_by_almacen(
         self,
