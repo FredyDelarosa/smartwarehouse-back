@@ -162,6 +162,15 @@ async def get_bearer_token(
     return credentials.credentials
 
 
+async def get_bearer_token_opcional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer(auto_error=False))],
+) -> str | None:
+    """Igual que `get_bearer_token`, pero sin token no es un error."""
+    if credentials is None or not credentials.credentials:
+        return None
+    return credentials.credentials
+
+
 async def get_current_user(
     token: Annotated[str, Depends(get_bearer_token)],
     token_provider: TokenProviderDep,
@@ -195,6 +204,47 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[Usuario, Depends(get_current_user)]
+
+
+async def get_current_user_opcional(
+    token: Annotated[str | None, Depends(get_bearer_token_opcional)],
+    token_provider: TokenProviderDep,
+    usuario_repo: UsuarioRepoDep,
+) -> Usuario | None:
+    """
+    Igual que `get_current_user`, pero sin token devuelve `None` en vez de 401.
+
+    Para las rutas que tienen sentido con o sin sesión. La previsualización del
+    cuestionario es el caso real: quien está creando su almacén todavía no
+    tiene cuenta —la cuenta se crea al final— así que exigirle rol de
+    Administrador le impediría ver la pantalla de confirmación, que es
+    justamente lo que se quiere que vea antes de comprometerse.
+    """
+    if token is None:
+        return None
+    return await get_current_user(token, token_provider, usuario_repo)
+
+
+CurrentUserOpcionalDep = Annotated[Usuario | None, Depends(get_current_user_opcional)]
+
+
+def get_ubicacion_repo_opcional(
+    session: SessionDep, usuario: CurrentUserOpcionalDep
+) -> UbicacionRepository:
+    """
+    Repositorio de ubicaciones que funciona también sin sesión.
+
+    Sin token devuelve un repositorio NO acotado, y eso solo se usa en la
+    previsualización del cuestionario, que no escribe nada y, sin almacén al
+    que mirar, solo cuenta cuántas filas habría. Las rutas que sí escriben
+    usan `get_ubicacion_repo`, que sí exige sesión y sí acota.
+    """
+    return UbicacionRepositoryImpl(
+        session, almacen_id=usuario.almacen_id if usuario else None
+    )
+
+
+UbicacionRepoOpcionalDep = Annotated[UbicacionRepository, Depends(get_ubicacion_repo_opcional)]
 
 
 def require_role(*roles: str):

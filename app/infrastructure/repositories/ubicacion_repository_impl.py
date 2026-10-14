@@ -34,6 +34,14 @@ class UbicacionRepositoryImpl(UbicacionRepository):
         stmt = select(UbicacionModel).where(
             UbicacionModel.codigo_ubicacion == codigo.strip().upper()
         )
+        # El filtro de almacén NO es opcional aquí. El código es único POR
+        # ALMACÉN, no en toda la tabla: P1-A-01 existe legítimamente en
+        # cualquier número de almacenes. Sin acotar, la búsqueda se llevaba el
+        # código del primero que encuentre en la base, y al generar las
+        # ubicaciones de un almacén nuevo se respondería que ya existían
+        # todas: ninguna.
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         model = await self._session.scalar(stmt)
         return ubicacion_to_entity(model) if model else None
 
@@ -43,6 +51,41 @@ class UbicacionRepositoryImpl(UbicacionRepository):
             stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         model = await self._session.scalar(stmt)
         return ubicacion_to_entity(model) if model else None
+
+    # Va ANTES que `list` a propósito: desde ahí en adelante, `list` es el
+    # método de esta clase y las anotaciones `list[Ubicacion]` de abajo
+    # romperían con "'function' object is not subscriptable".
+    async def create_many(
+        self, ubicaciones: list[Ubicacion], *, almacen_id: int
+    ) -> list[Ubicacion]:
+        if not ubicaciones:
+            return []
+
+        # Comprobación de ámbito. `create()` no la tiene porque usa el
+        # `almacen_id` que trae la entidad; aquí el id viene del parámetro y
+        # podría ser de otro almacén si alguien lo manipulase.
+        if self._almacen_id is not None and almacen_id != self._almacen_id:
+            raise ValueError(
+                "No se pueden crear ubicaciones en un almacén distinto "
+                "al del usuario autenticado."
+            )
+
+        modelos = []
+        for ubicacion in ubicaciones:
+            m = UbicacionModel()
+            apply_ubicacion(ubicacion, m)
+            # La entidad no lleva almacén: se lo pone el repositorio, para que
+            # el código que genera nunca pueda equivocarse de alcance.
+            m.almacen_id = almacen_id
+            modelos.append(m)
+
+        self._session.add_all(modelos)
+        # Un solo flush para todas. Con flush por fila serían cientos de
+        # viajes al servidor solo por el INSERT.
+        await self._session.flush()
+        for m in modelos:
+            await self._session.refresh(m)
+        return [ubicacion_to_entity(m) for m in modelos]
 
     async def list_by_almacen(
         self, almacen_id: int, *, solo_activas: bool = True

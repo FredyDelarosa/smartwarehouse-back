@@ -99,6 +99,50 @@ async def main() -> int:
             )
             print("  ✓ uq_productos_almacen_codigo creado (único por almacén)")
 
+        # --- 5. Ubicaciones: el mismo problema -----------------------------
+        # Se añadió después de la fase 1, cuando ya había almacenes nuevos, y
+        # `codigo_ubicacion` y `codigo_qr` seguían ÚNICOS EN TODA LA TABLA.
+        # Efecto: el almacén 2 no podía tener un P1-A-01 porque el almacén 1 ya
+        # tenía uno, y la generación del cuestionario moría con un 1062.
+        #
+        # Nota sobre `codigo_qr`: el QR es lo que lleva la etiqueta pegada en el
+        # estante. Que dos almacenes puedan tener el mismo contenido de QR es
+        # lo correcto (se escanea dentro del almacén), y se puede comprobar:
+        # el endpoint de lectura por QR ya va acotado al almacén del usuario.
+        for columna, indice_nuevo in (
+            ("codigo_ubicacion", "uq_ubicaciones_almacen_codigo"),
+            ("codigo_qr", "uq_ubicaciones_almacen_qr"),
+        ):
+            if await existe_indice(c, "ubicaciones", indice_nuevo):
+                print(f"  · {indice_nuevo} ya existe")
+                continue
+            # El índice global es el que choca. El no único (`idx_...`) se
+            # deja: sirve para buscar por código sin recorrer, y el único por
+            # almacén ya no puede cumplir esa función.
+            if await existe_indice(c, "ubicaciones", columna):
+                await c.execute(text(f"ALTER TABLE ubicaciones DROP INDEX {columna}"))
+                print(f"  ✓ índice global '{columna}' eliminado")
+            await c.execute(
+                text(
+                    f"CREATE UNIQUE INDEX {indice_nuevo} "
+                    f"ON ubicaciones (almacen_id, {columna})"
+                )
+            )
+            print(f"  ✓ {indice_nuevo} creado (único por almacén)")
+
+        # Índice de lectura por código dentro del almacén: el escáner y el
+        # listado filtran siempre por los dos.
+        if await existe_indice(c, "ubicaciones", "ix_ubicaciones_almacen_codigo"):
+            print("  · ix_ubicaciones_almacen_codigo ya existe")
+        else:
+            await c.execute(
+                text(
+                    "CREATE INDEX ix_ubicaciones_almacen_codigo "
+                    "ON ubicaciones (almacen_id, codigo_ubicacion)"
+                )
+            )
+            print("  ✓ ix_ubicaciones_almacen_codigo creado")
+
     # --- Verificación ----------------------------------------------------
     print("\n  Verificación:")
     async with engine.connect() as c:
@@ -109,6 +153,26 @@ async def main() -> int:
             print(f"    usuarios en almacén {t}: {r}")
         for t, r in await c.execute(text("SELECT almacen_id, COUNT(*) FROM productos GROUP BY almacen_id")):
             print(f"    productos en almacén {t}: {r}")
+        print("    índices de ubicaciones:")
+        r = await c.execute(
+            text(
+                "SELECT INDEX_NAME, NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ubicaciones' "
+                "GROUP BY INDEX_NAME, NON_UNIQUE ORDER BY INDEX_NAME"
+            )
+        )
+        for nombre, no_unico in r:
+            marca = "único " if no_unico == "0" else "índice"
+            columnas = await c.execute(
+                text(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ubicaciones' "
+                    "AND INDEX_NAME = :i ORDER BY SEQ_IN_INDEX"
+                ),
+                {"i": nombre},
+            )
+            cols = ", ".join(x[0] for x in columnas)
+            print(f"      {marca} {nombre} ({cols})")
 
     await engine.dispose()
     print("\n  Migración completada.")

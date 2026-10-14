@@ -30,6 +30,15 @@ from app.application.dtos.categoria_dto import (
     CategoriaReadDTO,
     CategoriaUpdateDTO,
 )
+from app.application.dtos.configuracion_dto import (
+    ConfigAlmacenDTO,
+    GeneracionResultDTO,
+    NivelConfigDTO,
+    PasilloConfigDTO,
+    PrevisualizacionDTO,
+    ResumenAlmacenDTO,
+    UbicacionPrevisualizadaDTO,
+)
 from app.application.dtos.incidencia_dto import (
     IncidenciaCreateDTO,
     IncidenciaReadDTO,
@@ -101,6 +110,10 @@ __all__ = [
     "ResultadoBusquedaDTO", "UbicacionConStockDTO",
     # Categoria
     "CategoriaBaseDTO", "CategoriaCreateDTO", "CategoriaReadDTO", "CategoriaUpdateDTO",
+    # Configuracion
+    "ConfigAlmacenDTO", "GeneracionResultDTO", "NivelConfigDTO",
+    "PasilloConfigDTO", "PrevisualizacionDTO", "ResumenAlmacenDTO",
+    "UbicacionPrevisualizadaDTO",
     # Incidencia
     "IncidenciaCreateDTO", "IncidenciaReadDTO", "IncidenciaUpdateDTO",
     # Inventario

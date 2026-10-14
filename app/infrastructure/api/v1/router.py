@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.infrastructure.api.v1.routes import (
+    configuracion,
     auth,
     busquedas,
     categorias,
@@ -29,5 +30,6 @@ api_v1_router.include_router(movimientos.router)
 api_v1_router.include_router(busquedas.router)
 api_v1_router.include_router(incidencias.router)
 api_v1_router.include_router(metricas.router)
+api_v1_router.include_router(configuracion.router)
 
 __all__ = ["api_v1_router"]
