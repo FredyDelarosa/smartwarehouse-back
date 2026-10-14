@@ -30,7 +30,16 @@ class ProductoModel(Base):
     __tablename__ = "productos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    codigo: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    codigo: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Multialmacén: el catálogo es POR ALMACÉN. El código único pasa a ser
+    # (almacen_id, codigo) — dos almacenes pueden tener ambos T001.
+    almacen_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("almacenes.id", onupdate="CASCADE", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        index=True,
+    )
     nombre: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
     descripcion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     categoria_id: Mapped[Optional[int]] = mapped_column(

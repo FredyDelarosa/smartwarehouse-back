@@ -22,6 +22,9 @@ class Usuario:
     password_hash: str
     rol_id: int
     id: Optional[int] = None
+    # Multialmacén: el almacén al que pertenece. Es lo que acota TODAS sus
+    # consultas; el cliente no puede pedir datos de otro.
+    almacen_id: int = 1
     activo: bool = True
     fecha_creacion: Optional[datetime] = None
     ultimo_acceso: Optional[datetime] = None

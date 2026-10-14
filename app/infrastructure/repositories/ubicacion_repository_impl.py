@@ -16,11 +16,18 @@ from app.infrastructure.repositories._mappers import (
 
 
 class UbicacionRepositoryImpl(UbicacionRepository):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, almacen_id: int | None = None) -> None:
         self._session = session
+        # `None` solo para el seeding y los scripts de arranque, que necesitan
+        # operar sobre todos los almacenes. Las peticiones HTTP siempre lo
+        # pasan atado al usuario (ver get_ubicacion_repo).
+        self._almacen_id = almacen_id
 
     async def get_by_id(self, ubicacion_id: int) -> Optional[Ubicacion]:
-        model = await self._session.get(UbicacionModel, ubicacion_id)
+        stmt = select(UbicacionModel).where(UbicacionModel.id == ubicacion_id)
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
+        model = await self._session.scalar(stmt)
         return ubicacion_to_entity(model) if model else None
 
     async def get_by_codigo(self, codigo: str) -> Optional[Ubicacion]:
@@ -32,6 +39,8 @@ class UbicacionRepositoryImpl(UbicacionRepository):
 
     async def get_by_qr(self, codigo_qr: str) -> Optional[Ubicacion]:
         stmt = select(UbicacionModel).where(UbicacionModel.codigo_qr == codigo_qr)
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         model = await self._session.scalar(stmt)
         return ubicacion_to_entity(model) if model else None
 
@@ -48,9 +57,11 @@ class UbicacionRepositoryImpl(UbicacionRepository):
         return [ubicacion_to_entity(m) for m in result.all()]
 
     async def list(self, *, skip: int = 0, limit: int = 100) -> list[Ubicacion]:
+        stmt = select(UbicacionModel)
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         stmt = (
-            select(UbicacionModel)
-            .order_by(
+            stmt.order_by(
                 UbicacionModel.pasillo, UbicacionModel.estante, UbicacionModel.nivel
             )
             .offset(skip)
@@ -70,7 +81,10 @@ class UbicacionRepositoryImpl(UbicacionRepository):
     async def update(self, ubicacion: Ubicacion) -> Ubicacion:
         if ubicacion.id is None:
             raise ValueError("La ubicación debe tener id para actualizarse")
-        model = await self._session.get(UbicacionModel, ubicacion.id)
+        stmt = select(UbicacionModel).where(UbicacionModel.id == ubicacion.id)
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
+        model = await self._session.scalar(stmt)
         if model is None:
             raise UbicacionNoEncontradaError(
                 details={"ubicacion_id": ubicacion.id}
@@ -81,7 +95,10 @@ class UbicacionRepositoryImpl(UbicacionRepository):
         return ubicacion_to_entity(model)
 
     async def delete(self, ubicacion_id: int) -> None:
-        model = await self._session.get(UbicacionModel, ubicacion_id)
+        stmt = select(UbicacionModel).where(UbicacionModel.id == ubicacion_id)
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
+        model = await self._session.scalar(stmt)
         if model is None:
             raise UbicacionNoEncontradaError(details={"ubicacion_id": ubicacion_id})
         await self._session.delete(model)
