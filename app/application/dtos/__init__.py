@@ -30,6 +30,12 @@ from app.application.dtos.categoria_dto import (
     CategoriaReadDTO,
     CategoriaUpdateDTO,
 )
+from app.application.dtos.carga_inicial_dto import (
+    CargaInicialDTO,
+    CargaInicialResultadoDTO,
+    LineaCargaInicialDTO,
+    LineaCargaResultadoDTO,
+)
 from app.application.dtos.configuracion_dto import (
     ConfigAlmacenDTO,
     GeneracionResultDTO,
@@ -110,6 +116,9 @@ __all__ = [
     "ResultadoBusquedaDTO", "UbicacionConStockDTO",
     # Categoria
     "CategoriaBaseDTO", "CategoriaCreateDTO", "CategoriaReadDTO", "CategoriaUpdateDTO",
+    # Carga inicial
+    "CargaInicialDTO", "CargaInicialResultadoDTO", "LineaCargaInicialDTO",
+    "LineaCargaResultadoDTO",
     # Configuracion
     "ConfigAlmacenDTO", "GeneracionResultDTO", "NivelConfigDTO",
     "PasilloConfigDTO", "PrevisualizacionDTO", "ResumenAlmacenDTO",
