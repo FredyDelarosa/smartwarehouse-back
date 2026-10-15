@@ -148,6 +148,10 @@ class GeneracionResultDTO(BaseModel):
 class ResumenAlmacenDTO(BaseModel):
     """Lo que ya tiene el almacén, para saber si falta configurarlo."""
 
+    # El nombre va aquí porque la hoja de estante se imprime y se cuelga en el
+    # almacén: sin él, una lista de la nave de arriba es indistinguible de una
+    # de la de abajo.
+    nombre: str
     total_ubicaciones: int
     activas: int
     fuera_servicio: int

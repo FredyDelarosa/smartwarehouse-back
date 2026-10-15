@@ -122,6 +122,12 @@ class InventarioRepositoryImpl(InventarioRepository):
         La subconsulta ordena también por `codigo_ubicacion`, igual que el SELECT
         exterior. Paginar por `id` y presentar por código daría páginas
         incoherentes: el usuario vería P1-A-01 después de P3-D-02.
+
+        El filtro de almacén va en **las dos** consultas. Es tentador ponerlo solo
+        en la exterior, donde se lee el producto, y olvidarlo en la subconsulta
+        de ids: entonces `in_(paginadas)` traía filas de otros almacenes y se
+        colaban. Pasó: el almacén 1 veía la ubicación P1-A-01 del almacén 2, con
+        su producto y su cantidad.
         """
         paginadas = (
             select(InventarioModel.ubicacion_id)
@@ -131,6 +137,8 @@ class InventarioRepositoryImpl(InventarioRepository):
             .limit(limit)
             .offset(skip)
         )
+        if self._almacen_id is not None:
+            paginadas = paginadas.where(UbicacionModel.almacen_id == self._almacen_id)
 
         stmt = (
             select(UbicacionModel, ProductoModel, InventarioModel.cantidad)
@@ -139,6 +147,8 @@ class InventarioRepositoryImpl(InventarioRepository):
             .where(InventarioModel.ubicacion_id.in_(paginadas))
             .order_by(UbicacionModel.codigo_ubicacion, ProductoModel.codigo)
         )
+        if self._almacen_id is not None:
+            stmt = stmt.where(UbicacionModel.almacen_id == self._almacen_id)
         if solo_activas:
             stmt = stmt.where(UbicacionModel.activo.is_(True))
 

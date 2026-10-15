@@ -13,7 +13,7 @@ from app.application.dtos import (
 )
 from app.domain.entities import Ubicacion
 from app.domain.exceptions import ValidacionError
-from app.domain.repositories import UbicacionRepository
+from app.domain.repositories import AlmacenRepository, UbicacionRepository
 from app.domain.value_objects import CodigoUbicacion
 
 #: Estantes disponibles: una letra cada uno, por eso 26 y no 99.
@@ -53,8 +53,15 @@ class ConfigurarAlmacenUseCase:
     servidor y no en la etiqueta de un estante real.
     """
 
-    def __init__(self, ubicacion_repo: UbicacionRepository) -> None:
+    def __init__(
+        self,
+        ubicacion_repo: UbicacionRepository,
+        almacen_repo: AlmacenRepository | None = None,
+    ) -> None:
         self._ubicacion_repo = ubicacion_repo
+        # Opcional: las tres rutas de previsualizar/generar no lo necesitan y
+        # no tiene sentido exigir un repositorio que no van a usar.
+        self._almacen_repo = almacen_repo
 
     # ------------------------------------------------------------------
     # Cálculo
@@ -193,7 +200,9 @@ class ConfigurarAlmacenUseCase:
         )
         pasillos = {u.pasillo for u in existentes}
         niveles = {u.nivel for u in existentes}
+        almacen = await self._almacen_repo.get_by_id(almacen_id) if self._almacen_repo else None
         return ResumenAlmacenDTO(
+            nombre=almacen.nombre if almacen else "Almacén",
             total_ubicaciones=len(existentes),
             activas=sum(1 for u in existentes if u.activo),
             fuera_servicio=sum(1 for u in existentes if not u.activo),
