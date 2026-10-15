@@ -2,22 +2,29 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, status
 
 from app.application.dtos import (
+    CargaInicialDTO,
+    CargaInicialResultadoDTO,
     ProductoStockBajoDTO,
     StockTotalProductoDTO,
     UbicacionStockDTO,
 )
 from app.application.use_cases.inventario import (
     AlertasStockBajoUseCase,
+    CargaInicialUseCase,
     ConsultarStockUseCase,
     StockPorUbicacionUseCase,
 )
 from app.infrastructure.api.dependencies import (
+    CurrentUserDep,
     InventarioRepoDep,
+    MovimientoRepoDep,
     ProductoRepoDep,
+    SessionDep,
     UbicacionRepoDep,
+    require_role,
 )
 
 router = APIRouter(prefix="/inventario", tags=["inventario"])
@@ -84,3 +91,41 @@ async def stock_por_ubicacion(
     """
     use_case = StockPorUbicacionUseCase(inventario_repo)
     return await use_case.execute(skip=skip, limit=limit, solo_activas=solo_activas)
+
+
+# ============================================================
+# POST /inventario/carga-inicial
+# ============================================================
+@router.post(
+    "/carga-inicial",
+    response_model=CargaInicialResultadoDTO,
+    status_code=status.HTTP_201_CREATED,
+    summary="Colocar existencias en varias ubicaciones de una vez",
+    dependencies=[Depends(require_role("Administrador", "Supervisor"))],
+)
+async def carga_inicial(
+    payload: CargaInicialDTO,
+    current_user: CurrentUserDep = None,
+    producto_repo: ProductoRepoDep = None,
+    ubicacion_repo: UbicacionRepoDep = None,
+    inventario_repo: InventarioRepoDep = None,
+    movimiento_repo: MovimientoRepoDep = None,
+    session: SessionDep = None,
+) -> CargaInicialResultadoDTO:
+    """
+    Carga el stock inicial de varios productos en una sola llamada.
+
+    Cada línea genera un movimiento ENTRADA con su usuario y su fecha: el
+    stock no aparece por la puerta de atrás, sino con la misma trazabilidad
+    que cualquier otra entrada.
+
+    Devuelve 201 aunque alguna línea falle, y el detalle va en `movimientos`:
+    es normal que un producto esté dado de baja y no debe impedir cargar los
+    otros doscientos.
+    """
+    use_case = CargaInicialUseCase(
+        session, producto_repo, ubicacion_repo, inventario_repo, movimiento_repo
+    )
+    resultado = await use_case.execute(payload, current_user.id or 0)
+    await session.commit()
+    return resultado
