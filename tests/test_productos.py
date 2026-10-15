@@ -23,14 +23,36 @@ async def test_listar_productos(client: AsyncClient, admin_token: str):
 async def test_listar_productos_filtrados_categoria(
     client: AsyncClient, admin_token: str
 ):
-    """Test: listar productos filtrados por categoría 1 (espera 10)."""
+    """
+    Listar productos filtrados por categoría.
+
+    No se comprueba el número exacto de filas. Antes era `== 10` y empezó a
+    fallar en cuanto alguien dio de alta un producto de Tornillería a mano —que
+    es exactamente lo que hace un usuario probando la aplicación—. Un test que
+    se rompe porque la aplicación se usa es un test que obliga a no usarla.
+
+    Lo que importa aquí es que el FILTRO funciona: que solo salgan productos de
+    esa categoría y que no se cuele ninguno de otra.
+    """
     response = await client.get(
         "/api/v1/productos/?categoria_id=1",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 10
+    assert data, "la categoría 1 debería tener productos"
+    assert all(p["categoria_id"] == 1 for p in data), "se coló otra categoría"
+    assert any(p["codigo"] == "T001" for p in data), "no está el producto sembrado T001"
+
+    # Y que el filtro discrimina de verdad: la categoría 1 tiene menos que la
+    # 4, que es la de EPP y la más poblada del catálogo.
+    otra = await client.get(
+        "/api/v1/productos/?categoria_id=4",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert otra.status_code == 200
+    assert all(p["categoria_id"] == 4 for p in otra.json())
+
     print(f"✅ Productos categoría 1: {len(data)}")
 
 

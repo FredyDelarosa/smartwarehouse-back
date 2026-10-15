@@ -17,6 +17,7 @@ from app.application.dtos import (
 from app.application.use_cases.configuracion import ConfigurarAlmacenUseCase
 from app.domain.entities import Usuario
 from app.infrastructure.api.dependencies import (
+    AlmacenRepoDep,
     CurrentUserDep,
     CurrentUserOpcionalDep,
     SessionDep,
@@ -113,6 +114,9 @@ async def generar(
 async def resumen(
     current_user: CurrentUserDep = None,
     ubicacion_repo: UbicacionRepoDep = None,
+    almacen_repo: AlmacenRepoDep = None,
 ) -> ResumenAlmacenDTO:
     """Sirve para mostrar «tu almacén tiene 96 ubicaciones» o «aún no hay ninguna»."""
-    return await _caso_de_uso(ubicacion_repo).resumen(current_user.almacen_id)
+    return await ConfigurarAlmacenUseCase(ubicacion_repo, almacen_repo).resumen(
+        current_user.almacen_id
+    )

@@ -61,8 +61,37 @@ class SesionDeTest:
     async def rollback(self) -> None:
         await self._sesion.rollback()
 
+    def begin_nested(self):
+        """
+        Savepoint que no hace nada.
+
+        Sin esto, un caso de uso que envuelva cada línea en `begin_nested()`
+        —como hace la carga inicial— abre savepoints de verdad y los libera
+        dentro de la transacción de test. El rollback del final ya no deshace
+        esas filas y **la suite escribía en la base de producción**: el test
+        dejó un `inventario` con cantidad 0 para T001 y los tests de
+        inventario empezaron a fallar porque T001 aparecía en tres ubicaciones
+        en vez de dos.
+
+        Neutralizarlo aquí cierra el agujero para cualquier caso de uso futuro
+        que use savepoints, no solo para la carga inicial.
+        """
+        return _NullSavepoint()
+
     def __getattr__(self, nombre: str) -> Any:
         return getattr(self._sesion, nombre)
+
+
+class _NullSavepoint:
+    """Contexto de savepoint que no toca nada."""
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        # No se suprime ninguna excepción: el caso de uso decide, y el error
+        # tiene que seguir propagándose hasta la ruta.
+        return False
 
 
 @pytest.fixture
