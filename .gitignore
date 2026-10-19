@@ -14,3 +14,13 @@ venv/
 
 # Alembic (opcional, no versionar migraciones generadas si trabajas en equipo)
 # migrations/versions/*.py
+# ── Documentación de planificación ────────────────────────────────────
+# Todo lo que se usó para plantear el proyecto, no para construirlo. Se
+# retiró de la historia con git-filter-repo; estas reglas evitan que vuelva a
+# colarse por descuido.
+/DECISIONS.md
+/CHANGES.md
+/arquitectura.md
+/plan_conclusion.md
+/proyecto.md
+/API_FRONTEND.md
